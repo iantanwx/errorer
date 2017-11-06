@@ -121,6 +121,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) {
 	info := &types.Info{
 		Defs: pkg.defs,
 	}
+	// config.Check populates the Defs map
 	typesPkg, err := config.Check(pkg.dir, fs, astFiles, info)
 	if err != nil {
 		log.Fatalf("checking package: %s", err)
@@ -137,7 +138,6 @@ func (g *Generator) Generate(typeName string) {
 		file.values = nil
 		if file.file != nil {
 			ast.Inspect(file.file, file.genDecl)
-			ast.Inspect(file.file, file.genComm)
 			values = append(values, file.values...)
 		}
 	}
