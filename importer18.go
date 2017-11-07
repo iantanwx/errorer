@@ -1,6 +1,6 @@
 // +build !go1.9
 
-package main
+package errorer
 
 import (
 	"go/importer"

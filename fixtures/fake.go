@@ -11,7 +11,6 @@ const (
 )
 
 type TestError struct {
-	Code    int
 	Name    string
 	Message string
 }
@@ -33,10 +32,6 @@ func verify(err Error, name string, code int, message string) {
 
 	if errStruct.Name != name {
 		panic("wrong name")
-	}
-
-	if errStruct.Code != code {
-		panic("wrong code")
 	}
 
 	if errStruct.Message != message {

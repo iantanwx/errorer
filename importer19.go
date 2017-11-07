@@ -1,5 +1,4 @@
 // +build go1.9
-
 package errorer
 
 import (

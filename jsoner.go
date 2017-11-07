@@ -2,7 +2,7 @@ package errorer
 
 import "fmt"
 
-const errStrToValueMap = `func %[1]sString(s string) ($[1]s, error) {
+const errStrToValueMap = `func %[1]sString(s string) (%[1]s, error) {
 	if val, ok := _%[1]sNameToValue_map[s]; ok {
 		return val, nil
 	}
@@ -22,6 +22,9 @@ func (g *Generator) buildErrStrToValueMap(runs [][]Value, typeName string) {
 	for i, values := range runs {
 		if hasRuns {
 			runID = fmt.Sprintf("_%d", i)
+			n = 0
+		} else {
+			runID = ""
 		}
 
 		for _, value := range values {
