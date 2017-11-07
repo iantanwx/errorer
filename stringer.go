@@ -93,6 +93,7 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 		if !strings.HasSuffix(name, ".go") {
 			continue
 		}
+		// include comments. stringer doesn't pass comments
 		parsedFile, err := parser.ParseFile(fs, name, text, parser.ParseComments)
 		if err != nil {
 			log.Fatalf("parsing package: %s: %s", name, err)
@@ -144,6 +145,7 @@ func (g *Generator) Generate(typeName string) {
 	if len(values) == 0 {
 		log.Fatalf("no values defined for type %s", typeName)
 	}
+
 	runs := splitIntoRuns(values)
 	// The decision of which pattern to use depends on the number of
 	// runs in the numbers. If there's only one, it's easy. For more than
@@ -160,6 +162,7 @@ func (g *Generator) Generate(typeName string) {
 	switch {
 	case len(runs) == 1:
 		g.buildOneRun(runs, typeName)
+		g.buildErrorMethod(runs, typeName, 10)
 	case len(runs) <= 10:
 		g.buildMultipleRuns(runs, typeName)
 	default:

@@ -3,15 +3,28 @@ package errorer
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
-const errorMethod = `
-		
+// Args:
+// [1]: type name
+// [2]: size of index element
+// [3]: lt 0 check (if signed)
+const errorOneRun = `func (i %[1]s) Error() string {
+	if %[3]si >= %[1]s(len(_%[1]s_index)-1) {
+		return fmt.Sprintf("%[1]s(%%d)", i)
+	}
+	return _%[1]s_msg[_%[1]s_msg_index[i]:_%[1]s_msg_index[i+1]]
+}
 `
 
 // buildErrorMethod ensures that our struct satisfies the error interface
-func (g *Generator) buildErrorMethod(run [][]Value, typeName string, runsThreshold int) {
+func (g *Generator) buildErrorMethod(runs [][]Value, typeName string, runsThreshold int) {
 	// g.Printf(jsonMethods, typeName)
+	values := runs[0]
+	g.declareIndexAndMsgVar(values, typeName)
+	// TODO: we need to check whether there is an offset!
+	g.Printf(errorOneRun, typeName, usize(len(values)), "i < 0 ||")
 }
 
 // buildNameToMsgMap allows the Error() method to retrieve the error message
@@ -22,7 +35,7 @@ func (g *Generator) buildNameToMsgMap(runs [][]Value, typeName string, runsThres
 	var n int
 	for _, values := range runs {
 		for _, value := range values {
-			g.Printf("\t_^s_name%s[%d:%d]: %s,\n", typeName, "", n, n+len(value.name), &value)
+			g.Printf("\t_^s_msg%s[%d:%d]: %s,\n", typeName, "", n, n+len(value.name), &value)
 			n += len(value.name)
 		}
 	}
@@ -44,13 +57,13 @@ func (g *Generator) createIndexAndMsgDecl(run []Value, typeName string, suffix s
 	b := new(bytes.Buffer)
 	indexes := make([]int, len(run))
 	for i := range run {
-		b.WriteString(run[i].msg)
+		b.WriteString(strings.TrimSuffix(run[i].msg, "\n"))
 		indexes[i] = b.Len()
 	}
 	msgConst := fmt.Sprintf("_%s_msg%s = %q", typeName, suffix, b.String())
 	msgLen := b.Len()
 	b.Reset()
-	fmt.Fprintf(b, "_%s_index%s = [...]uint%d{0, ", typeName, suffix, usize(msgLen))
+	fmt.Fprintf(b, "_%s_msg_index%s = [...]uint%d{0, ", typeName, suffix, usize(msgLen))
 	for i, v := range indexes {
 		if i > 0 {
 			fmt.Fprintf(b, ", ")
