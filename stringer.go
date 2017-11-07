@@ -164,6 +164,7 @@ func (g *Generator) Generate(typeName string) {
 		g.buildOneRun(runs, typeName)
 		g.buildErrorMethod(runs, typeName, 10)
 		g.buildJsonMethods(typeName)
+		g.buildErrStrToValueMap(runs, typeName)
 	case len(runs) <= 10:
 		g.buildMultipleRuns(runs, typeName)
 	default:
