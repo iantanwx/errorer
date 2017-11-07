@@ -38,6 +38,21 @@ func (i Error) Error() string {
 	}
 	return _Error_msg[_Error_msg_index[i]:_Error_msg_index[i+1]]
 }
+
+func (i Error) MarshalJSON() ([]byte, error) {
+	b := new(bytes.Buffer)
+	msg, err := json.Marshal(i.Error())
+	if err != nil {
+		return b, err
+	}
+	name, err := json.Marshal(i.String())
+	if err != nil {
+		return b, err
+	}
+	json := fmt.Sprintf("{\"type\":%s,\"message\":%s}", name, msg)
+	b.WriteString(json)
+	return b.Bytes(), nil
+}
 `
 
 type Golden struct {
@@ -65,13 +80,9 @@ func TestGolden(t *testing.T) {
 			t.Fatalf("Need type declaration on first line")
 		}
 
-		// t.Error(tokens[1])
-
 		g.Generate(tokens[1])
 
 		out := string(g.Format())
-
-		// t.Error(out)
 
 		if out != test.output {
 			t.Errorf("%s: got\n====\n%s====\nexpected\n====%s", test.name, out, test.output)
