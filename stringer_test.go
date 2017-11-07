@@ -5,10 +5,8 @@ import (
 	"testing"
 )
 
-var src = `
-type Error int
-
-//User could not be found
+// Simple, no offset, single-run enum of errors
+var basic_in = `type Error int
 const (
 	NotFound         Error = iota //User could not be found
 	AlreadyExists                 //User already exists
@@ -18,52 +16,65 @@ const (
 )
 `
 
-// func TestCommentMap(t *testing.T) {
-// 	fset := token.NewFileSet()
-// 	pkg := new(Package)
-// 	f, err := parser.ParseFile(fset, "src.go", src, parser.ParseComments)
+var basic_out = `
+const _Error_name = "NotFoundAlreadyExistsNotSureBadRequestDataWorksOnMyMachine"
 
-// 	if err != nil {
-// 		t.Error(err.Error())
-// 	}
+var _Error_index = [...]uint8{0, 8, 21, 28, 42, 58}
 
-// 	pkg.check(fset, []*ast.File{f})
-
-// 	ast.Inspect(f,
-// 		func(node ast.Node) bool {
-// 			decl, ok := node.(*ast.GenDecl)
-
-// 			if !ok || decl.Tok != token.CONST {
-// 				return true
-// 			}
-
-// 			for _, spec := range decl.Specs {
-// 				vspec := spec.(*ast.ValueSpec)
-// 				for _, name := range vspec.Names {
-// 					t.Error(name)
-// 					obj, _ := pkg.defs[name]
-
-// 					val := obj.(*types.Const).Val()
-// 					u64, _ := exact.Uint64Val(val)
-// 					t.Error(u64)
-// 					t.Error(vspec.Comment.Text())
-// 				}
-// 			}
-
-// 			return false
-// 		})
-// }
-
-func TestTryTry(t *testing.T) {
-	var g Generator
-	input := "package test\n" + src
-	g.parsePackage(".", []string{"error_test.go"}, input)
-
-	tokens := strings.SplitN(src, " ", 3)
-	if len(tokens) != 3 {
-		t.Fatalf("Need type declaration on first line")
+func (i Error) String() string {
+	if i < 0 || i >= Error(len(_Error_index)-1) {
+		return fmt.Sprintf("Error(%d)", i)
 	}
-	g.Generate(tokens[1])
+	return _Error_name[_Error_index[i]:_Error_index[i+1]]
+}
 
-	t.Error(string(g.Format()))
+const _Error_msg = "User could not be foundUser already existsNot sure what happenedYou didn't send a good requestWorks on my machine"
+
+var _Error_msg_index = [...]uint8{0, 23, 42, 64, 94, 113}
+
+func (i Error) Error() string {
+	if i < 0 || i >= Error(len(_Error_index)-1) {
+		return fmt.Sprintf("Error(%d)", i)
+	}
+	return _Error_msg[_Error_msg_index[i]:_Error_msg_index[i+1]]
+}
+`
+
+type Golden struct {
+	name   string
+	input  string
+	output string
+}
+
+var golden = []Golden{
+	{"basic", basic_in, basic_out},
+}
+
+func TestGolden(t *testing.T) {
+	for _, test := range golden {
+		var g Generator
+		in := "package test\n" + test.input
+
+		file := test.name + ".go"
+
+		g.parsePackage(".", []string{file}, in)
+
+		tokens := strings.SplitN(test.input, " ", 3)
+
+		if len(tokens) != 3 {
+			t.Fatalf("Need type declaration on first line")
+		}
+
+		// t.Error(tokens[1])
+
+		g.Generate(tokens[1])
+
+		out := string(g.Format())
+
+		// t.Error(out)
+
+		if out != test.output {
+			t.Errorf("%s: got\n====\n%s====\nexpected\n====%s", test.name, out, test.output)
+		}
+	}
 }
