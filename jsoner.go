@@ -52,6 +52,29 @@ func (i %[1]s) MarshalJSON() ([]byte, error) {
 	b.WriteString(json)
 	return b.Bytes(), nil
 }
+
+type errStruct struct {
+	name string
+	message string
+}
+
+func (i *%[1]s) UnmarshalJSON(data []byte) error {
+	var errData errStruct
+
+	if err := json.Unmarshal(data, &errData); err != nil {
+		return fmt.Errorf("Expecting a string, got %%s", data)
+	}
+
+	val, err := %[1]sString(errData.name)
+
+	if err != nil {
+		return err
+	}
+	
+	*i = val
+
+	return nil
+}
 `
 
 func (g *Generator) buildJsonMethods(typeName string) {
