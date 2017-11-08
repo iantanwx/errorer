@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"log"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 )
@@ -133,6 +134,11 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) {
 	pkg.typesPkg = typesPkg
 }
 
+var methods = map[string]string{
+	"String": "name",
+	"Error":  "msg",
+}
+
 // Generate produces the String method for the named type.
 func (g *Generator) Generate(typeName string) {
 	values := make([]Value, 0, 100)
@@ -163,16 +169,21 @@ func (g *Generator) Generate(typeName string) {
 	// being necessary for any realistic example other than bitmasks
 	// is very low. And bitmasks probably deserve their own analysis,
 	// to be done some other day.
-	switch {
-	case len(runs) == 1:
-		g.buildOneRun(runs, typeName)
-		g.buildErrorMethod(runs, typeName, 10)
-		g.buildErrStrToValueMap(runs, typeName)
-		g.buildJsonMethods(typeName)
-	case len(runs) <= 10:
-		g.buildMultipleRuns(runs, typeName)
-	default:
-		g.buildMap(runs, typeName)
+	g.buildMethods(runs, typeName, methods)
+	g.buildErrStrToValueMap(runs, typeName)
+	g.buildJsonMethods(typeName)
+}
+
+func (g *Generator) buildMethods(runs [][]Value, typeName string, methods map[string]string) {
+	for method, prefix := range methods {
+		switch {
+		case len(runs) == 1:
+			g.buildOneRun(runs, typeName, prefix, method)
+		case len(runs) <= 10:
+			g.buildMultipleRuns(runs, typeName, prefix)
+		default:
+			g.buildMap(runs, typeName)
+		}
 	}
 }
 
@@ -365,10 +376,10 @@ func usize(n int) int {
 
 // declareIndexAndNameVars declares the index slices and concatenated names
 // strings representing the runs of values.
-func (g *Generator) declareIndexAndNameVars(runs [][]Value, typeName string) {
+func (g *Generator) declareIndexAndNameVars(runs [][]Value, typeName string, prefix string) {
 	var indexes, names []string
 	for i, run := range runs {
-		index, name := g.createIndexAndNameDecl(run, typeName, fmt.Sprintf("_%d", i))
+		index, name := g.createIndexAndNameDecl(run, typeName, prefix, fmt.Sprintf("_%d", i))
 		indexes = append(indexes, index)
 		names = append(names, name)
 	}
@@ -385,24 +396,25 @@ func (g *Generator) declareIndexAndNameVars(runs [][]Value, typeName string) {
 }
 
 // declareIndexAndNameVar is the single-run version of declareIndexAndNameVars
-func (g *Generator) declareIndexAndNameVar(run []Value, typeName string) {
-	index, name := g.createIndexAndNameDecl(run, typeName, "")
+func (g *Generator) declareIndexAndNameVar(run []Value, typeName string, prefix string) {
+	index, name := g.createIndexAndNameDecl(run, typeName, prefix, "")
 	g.Printf("const %s\n", name)
 	g.Printf("var %s\n", index)
 }
 
 // createIndexAndNameDecl returns the pair of declarations for the run. The caller will add "const" and "var".
-func (g *Generator) createIndexAndNameDecl(run []Value, typeName string, suffix string) (string, string) {
+func (g *Generator) createIndexAndNameDecl(run []Value, typeName string, prefix string, suffix string) (string, string) {
 	b := new(bytes.Buffer)
 	indexes := make([]int, len(run))
 	for i := range run {
-		b.WriteString(run[i].name)
+		val := reflect.ValueOf(run[i]).FieldByName(prefix).String()
+		b.WriteString(strings.TrimSuffix(val, "\n"))
 		indexes[i] = b.Len()
 	}
-	nameConst := fmt.Sprintf("_%s_name%s = %q", typeName, suffix, b.String())
+	nameConst := fmt.Sprintf("_%s_%s%s = %q", typeName, prefix, suffix, b.String())
 	nameLen := b.Len()
 	b.Reset()
-	fmt.Fprintf(b, "_%s_index%s = [...]uint%d{0, ", typeName, suffix, usize(nameLen))
+	fmt.Fprintf(b, "_%s_%s_index%s = [...]uint%d{0, ", typeName, prefix, suffix, usize(nameLen))
 	for i, v := range indexes {
 		if i > 0 {
 			fmt.Fprintf(b, ", ")
@@ -425,69 +437,71 @@ func (g *Generator) declareNameVars(runs [][]Value, typeName string, suffix stri
 }
 
 // buildOneRun generates the variables and String method for a single run of contiguous values.
-func (g *Generator) buildOneRun(runs [][]Value, typeName string) {
+func (g *Generator) buildOneRun(runs [][]Value, typeName string, prefix string, methodName string) {
 	values := runs[0]
 	g.Printf("\n")
-	g.declareIndexAndNameVar(values, typeName)
+	g.declareIndexAndNameVar(values, typeName, prefix)
 	// The generated code is simple enough to write as a Printf format.
 	lessThanZero := ""
 	if values[0].signed {
 		lessThanZero = "i < 0 || "
 	}
 	if values[0].value == 0 { // Signed or unsigned, 0 is still 0.
-		g.Printf(stringOneRun, typeName, usize(len(values)), lessThanZero)
+		g.Printf(stringOneRun, typeName, methodName, prefix, usize(len(values)), lessThanZero)
 	} else {
-		g.Printf(stringOneRunWithOffset, typeName, values[0].String(), usize(len(values)), lessThanZero)
+		g.Printf(stringOneRunWithOffset, typeName, methodName, prefix, values[0].String(), usize(len(values)), lessThanZero)
 	}
 }
 
 // Arguments to format are:
 //	[1]: type name
-//	[2]: size of index element (8 for uint8 etc.)
-//	[3]: less than zero check (for signed types)
-const stringOneRun = `func (i %[1]s) String() string {
-	if %[3]si >= %[1]s(len(_%[1]s_index)-1) {
+//	[2]: method name
+//	[3]: prefix
+//	[4]: size of index element (8 for uint8 etc.)
+//	[5]: less than zero check (for signed types)
+const stringOneRun = `func (i %[1]s) %[2]s() string {
+	if %[5]si >= %[1]s(len(_%[1]s_%[3]s_index)-1) {
 		return fmt.Sprintf("%[1]s(%%d)", i)
 	}
-	return _%[1]s_name[_%[1]s_index[i]:_%[1]s_index[i+1]]
+	return _%[1]s_%[3]s[_%[1]s_%[3]s_index[i]:_%[1]s_%[3]s_index[i+1]]
 }
 `
 
 // Arguments to format are:
 //	[1]: type name
-//	[2]: lowest defined value for type, as a string
-//	[3]: size of index element (8 for uint8 etc.)
-//	[4]: less than zero check (for signed types)
-/*
- */
-const stringOneRunWithOffset = `func (i %[1]s) String() string {
-	i -= %[2]s
-	if %[4]si >= %[1]s(len(_%[1]s_index)-1) {
-		return fmt.Sprintf("%[1]s(%%d)", i + %[2]s)
+//	[2]: method name
+//	[3]: prefix
+//	[4]: lowest defined value for type, as a string
+//	[5]: size of index element (8 for uint8 etc.)
+//	[6]: less than zero check (for signed types)
+const stringOneRunWithOffset = `func (i %[1]s) %[2]s() string {
+	i -= %[4]s
+	if %[6]si >= %[1]s(len(_%[1]s_%[3]s_index)-1) {
+		return fmt.Sprintf("%[1]s(%%d)", i + %[4]s)
 	}
-	return _%[1]s_name[_%[1]s_index[i] : _%[1]s_index[i+1]]
+	return _%[1]s_%[3]s[_%[1]s_%[3]s_index[i] : _%[1]s_%[3]s_index[i+1]]
 }
 `
 
 // buildMultipleRuns generates the variables and String method for multiple runs of contiguous values.
 // For this pattern, a single Printf format won't do.
-func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
+func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string, prefix string) {
 	g.Printf("\n")
-	g.declareIndexAndNameVars(runs, typeName)
+	g.declareIndexAndNameVars(runs, typeName, prefix)
 	g.Printf("func (i %s) String() string {\n", typeName)
 	g.Printf("\tswitch {\n")
 	for i, values := range runs {
 		if len(values) == 1 {
 			g.Printf("\tcase i == %s:\n", &values[0])
-			g.Printf("\t\treturn _%s_name_%d\n", typeName, i)
+			g.Printf("\t\treturn _%s_%s_%d\n", typeName, prefix, i)
 			continue
 		}
 		g.Printf("\tcase %s <= i && i <= %s:\n", &values[0], &values[len(values)-1])
 		if values[0].value != 0 {
 			g.Printf("\t\ti -= %s\n", &values[0])
 		}
-		g.Printf("\t\treturn _%s_name_%d[_%s_index_%d[i]:_%s_index_%d[i+1]]\n",
-			typeName, i, typeName, i, typeName, i)
+		g.Printf("\t\treturn _%s_%s_%d[_%s_%s_index_%d[i]:_%s_%s_index_%d[i+1]]\n",
+			typeName, prefix, i, typeName, prefix, i, typeName, prefix, i)
 	}
 	g.Printf("\tdefault:\n")
 	g.Printf("\t\treturn fmt.Sprintf(\"%s(%%d)\", i)\n", typeName)

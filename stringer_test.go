@@ -19,13 +19,13 @@ const (
 const basic_out = `
 const _Error_name = "NotFoundAlreadyExistsNotSureBadRequestDataWorksOnMyMachine"
 
-var _Error_index = [...]uint8{0, 8, 21, 28, 42, 58}
+var _Error_name_index = [...]uint8{0, 8, 21, 28, 42, 58}
 
 func (i Error) String() string {
-	if i < 0 || i >= Error(len(_Error_index)-1) {
+	if i < 0 || i >= Error(len(_Error_name_index)-1) {
 		return fmt.Sprintf("Error(%d)", i)
 	}
-	return _Error_name[_Error_index[i]:_Error_index[i+1]]
+	return _Error_name[_Error_name_index[i]:_Error_name_index[i+1]]
 }
 
 const _Error_msg = "User could not be foundUser already existsNot sure what happenedYou didn't send a good requestWorks on my machine"
