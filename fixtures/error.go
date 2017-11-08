@@ -48,9 +48,6 @@ func verify(err Error, name string, message string, response string) {
 		panic("Wrong name")
 	}
 
-	fmt.Println(string(toJSON(err)))
-	fmt.Println(response)
-
 	if string(toJSON(err)) != response {
 		panic("Wrong JSON")
 	}
