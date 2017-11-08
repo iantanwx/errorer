@@ -11,7 +11,7 @@ import (
 // [2]: size of index element
 // [3]: lt 0 check (if signed)
 const errorOneRun = `func (i %[1]s) Error() string {
-	if %[3]si >= %[1]s(len(_%[1]s_index)-1) {
+	if %[3]si >= %[1]s(len(_%[1]s_msg_index)-1) {
 		return fmt.Sprintf("%[1]s(%%d)", i)
 	}
 	return _%[1]s_msg[_%[1]s_msg_index[i]:_%[1]s_msg_index[i+1]]

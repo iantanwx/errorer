@@ -45,11 +45,11 @@ func (i %[1]s) MarshalJSON() ([]byte, error) {
 	b := new(bytes.Buffer)
 	msg, err := json.Marshal(i.Error())
 	if err != nil {
-		return b, err
+		return b.Bytes(), err
 	}
 	name, err := json.Marshal(i.String())
 	if err != nil {
-		return b, err
+		return b.Bytes(), err
 	}
 	json := fmt.Sprintf("{\"type\":%%s,\"message\":%%s}", name, msg)
 	b.WriteString(json)

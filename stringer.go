@@ -42,6 +42,10 @@ type Package struct {
 	typesPkg *types.Package
 }
 
+func (p *Package) GetName() string {
+	return p.name
+}
+
 // Printf writes generated code to the buffer
 func (g *Generator) Printf(format string, args ...interface{}) {
 	fmt.Fprintf(&g.Buf, format, args...)
