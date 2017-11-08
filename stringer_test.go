@@ -184,6 +184,118 @@ func (i *Error) UnmarshalJSON(data []byte) error {
 }
 `
 
+const multiple_in = `type Error int
+const (
+	NotFound         Error = 100		//User could not be found
+	AlreadyExists	 Error = 101				//User already exists
+	NotSure			 Error = 103					//Not sure what happened
+	BadRequestData	Error = 104				//You didn't send a good request
+	WorksOnMyMachine Error = 105					//Works on my machine
+)
+`
+
+const multiple_out = `
+const (
+	_Error_name_0 = "NotFoundAlreadyExists"
+	_Error_name_1 = "NotSureBadRequestDataWorksOnMyMachine"
+)
+
+var (
+	_Error_name_index_0 = [...]uint8{0, 8, 21}
+	_Error_name_index_1 = [...]uint8{0, 7, 21, 37}
+)
+
+func (i Error) String() string {
+	switch {
+	case 100 <= i && i <= 101:
+		i -= 100
+		return _Error_name_0[_Error_name_index_0[i]:_Error_name_index_0[i+1]]
+	case 103 <= i && i <= 105:
+		i -= 103
+		return _Error_name_1[_Error_name_index_1[i]:_Error_name_index_1[i+1]]
+	default:
+		return fmt.Sprintf("Error(%d)", i)
+	}
+}
+
+const (
+	_Error_msg_0 = "User could not be foundUser already exists"
+	_Error_msg_1 = "Not sure what happenedYou didn't send a good requestWorks on my machine"
+)
+
+var (
+	_Error_msg_index_0 = [...]uint8{0, 23, 42}
+	_Error_msg_index_1 = [...]uint8{0, 22, 52, 71}
+)
+
+func (i Error) Error() string {
+	switch {
+	case 100 <= i && i <= 101:
+		i -= 100
+		return _Error_msg_0[_Error_msg_index_0[i]:_Error_msg_index_0[i+1]]
+	case 103 <= i && i <= 105:
+		i -= 103
+		return _Error_msg_1[_Error_msg_index_1[i]:_Error_msg_index_1[i+1]]
+	default:
+		return fmt.Sprintf("Error(%d)", i)
+	}
+}
+
+var _ErrorNameToValue_map = map[string]Error{
+	_Error_name_0[0:8]:   100,
+	_Error_name_0[8:21]:  101,
+	_Error_name_1[0:7]:   103,
+	_Error_name_1[7:21]:  104,
+	_Error_name_1[21:37]: 105,
+}
+
+func ErrorString(s string) (Error, error) {
+	if val, ok := _ErrorNameToValue_map[s]; ok {
+		return val, nil
+	}
+
+	return 0, fmt.Errorf("%s is not the name of type Error")
+}
+
+func (i Error) MarshalJSON() ([]byte, error) {
+	b := new(bytes.Buffer)
+	msg, err := json.Marshal(i.Error())
+	if err != nil {
+		return b.Bytes(), err
+	}
+	name, err := json.Marshal(i.String())
+	if err != nil {
+		return b.Bytes(), err
+	}
+	json := fmt.Sprintf("{\"type\":%s,\"message\":%s}", name, msg)
+	b.WriteString(json)
+	return b.Bytes(), nil
+}
+
+type errStruct struct {
+	name    string
+	message string
+}
+
+func (i *Error) UnmarshalJSON(data []byte) error {
+	var errData errStruct
+
+	if err := json.Unmarshal(data, &errData); err != nil {
+		return fmt.Errorf("Expecting a string, got %s", data)
+	}
+
+	val, err := ErrorString(errData.name)
+
+	if err != nil {
+		return err
+	}
+
+	*i = val
+
+	return nil
+}
+`
+
 type Golden struct {
 	name   string
 	input  string
@@ -193,6 +305,7 @@ type Golden struct {
 var golden = []Golden{
 	{"basic", basic_in, basic_out},
 	{"offset", offset_in, offset_out},
+	{"multiple", multiple_in, multiple_out},
 }
 
 func TestGolden(t *testing.T) {

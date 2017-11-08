@@ -180,7 +180,7 @@ func (g *Generator) buildMethods(runs [][]Value, typeName string, methods map[st
 		case len(runs) == 1:
 			g.buildOneRun(runs, typeName, prefix, method)
 		case len(runs) <= 10:
-			g.buildMultipleRuns(runs, typeName, prefix)
+			g.buildMultipleRuns(runs, typeName, prefix, method)
 		default:
 			g.buildMap(runs, typeName)
 		}
@@ -485,10 +485,10 @@ const stringOneRunWithOffset = `func (i %[1]s) %[2]s() string {
 
 // buildMultipleRuns generates the variables and String method for multiple runs of contiguous values.
 // For this pattern, a single Printf format won't do.
-func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string, prefix string) {
+func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string, prefix string, methodName string) {
 	g.Printf("\n")
 	g.declareIndexAndNameVars(runs, typeName, prefix)
-	g.Printf("func (i %s) String() string {\n", typeName)
+	g.Printf("func (i %s) %s() string {\n", typeName, methodName)
 	g.Printf("\tswitch {\n")
 	for i, values := range runs {
 		if len(values) == 1 {
