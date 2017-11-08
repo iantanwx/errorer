@@ -1,4 +1,4 @@
-// Lifted from stringer
+// Adapted from github.com/golang/tools/cmd/stringer
 package errorer
 
 import (
