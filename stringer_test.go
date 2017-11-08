@@ -33,7 +33,7 @@ const _Error_msg = "User could not be foundUser already existsNot sure what happ
 var _Error_msg_index = [...]uint8{0, 23, 42, 64, 94, 113}
 
 func (i Error) Error() string {
-	if i < 0 || i >= Error(len(_Error_index)-1) {
+	if i < 0 || i >= Error(len(_Error_msg_index)-1) {
 		return fmt.Sprintf("Error(%d)", i)
 	}
 	return _Error_msg[_Error_msg_index[i]:_Error_msg_index[i+1]]
@@ -59,11 +59,11 @@ func (i Error) MarshalJSON() ([]byte, error) {
 	b := new(bytes.Buffer)
 	msg, err := json.Marshal(i.Error())
 	if err != nil {
-		return b, err
+		return b.Bytes(), err
 	}
 	name, err := json.Marshal(i.String())
 	if err != nil {
-		return b, err
+		return b.Bytes(), err
 	}
 	json := fmt.Sprintf("{\"type\":%s,\"message\":%s}", name, msg)
 	b.WriteString(json)
