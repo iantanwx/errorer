@@ -8,7 +8,9 @@ Input:
 ```
 error.go
 
-// this is a custom errorer type
+// this is a custom error type
+// we add the go:generate annotation
+//go:generate errorer -type=Error
 type Error int
 
 // error message is a comment annotation
@@ -106,6 +108,14 @@ func (i *Error) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+```
+
+The resulting output satisfies:
+
+- `fmt.Stringer`
+- `error.Error`
+- `json.Marshaler`
+- `json.Unmarshaler`
 
 # Inspiration
 
