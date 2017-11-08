@@ -182,7 +182,7 @@ func (g *Generator) buildMethods(runs [][]Value, typeName string, methods map[st
 		case len(runs) <= 10:
 			g.buildMultipleRuns(runs, typeName, prefix, method)
 		default:
-			g.buildMap(runs, typeName)
+			g.buildMap(runs, typeName, prefix, method)
 		}
 	}
 }
@@ -511,38 +511,27 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string, prefix st
 
 // buildMap handles the case where the space is so sparse a map is a reasonable fallback.
 // It's a rare situation but has simple code.
-func (g *Generator) buildMap(runs [][]Value, typeName string) {
+func (g *Generator) buildMap(runs [][]Value, typeName string, prefix string, methodName string) {
 	g.Printf("\n")
 	g.declareNameVars(runs, typeName, "")
-	g.Printf("\nvar _%s_map = map[%s]string{\n", typeName, typeName)
+	g.Printf("\nvar _%[1]s_%[2]s_map = map[%[1]s]string{\n", typeName, methodName)
 	n := 0
 	for _, values := range runs {
 		for _, value := range values {
-			g.Printf("\t%s: _%s_name[%d:%d],\n", &value, typeName, n, n+len(value.name))
+			g.Printf("\t%s: _%s_%s[%d:%d],\n", &value, typeName, prefix, n, n+len(value.name))
 			n += len(value.name)
 		}
 	}
 	g.Printf("}\n\n")
-	g.Printf(stringMap, typeName)
+	g.Printf(stringMap, typeName, prefix, methodName)
 }
 
-// buildNameToMsgMap allows the Error() method to retrieve the error message
-// quickly. we do need to generate the slice, though.
-func (g *Generator) buildNameToMsgMap(runs [][]Value, typeName string, runsThreshold int) {
-	// TODO: account for runs. for now we can assume we don't have any.
-	// n tracks where in the 'name' slice we are now
-	var n int
-	for _, values := range runs {
-		for _, value := range values {
-			g.Printf("\t_^s_msg%s[%d:%d]: %s,\n", typeName, "", n, n+len(value.name), &value)
-			n += len(value.name)
-		}
-	}
-}
-
-// Argument to format is the type name.
-const stringMap = `func (i %[1]s) String() string {
-	if str, ok := _%[1]s_map[i]; ok {
+// Arguments to format
+// [1] typeName
+// [2] prefix
+// [3] methodName
+const stringMap = `func (i %[1]s) %[3]s() string {
+	if str, ok := _%[1]s_%[2]s_map[i]; ok {
 		return str
 	}
 	return fmt.Sprintf("%[1]s(%%d)", i)
