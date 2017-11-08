@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type Error int
 
@@ -18,15 +21,37 @@ type TestError struct {
 }
 
 func main() {
-	verify(NotFound, "User could not be found")
-	verify(AlreadyExists, "User already exists")
-	verify(NotSure, "Not sure what happened")
-	verify(BadRequestData, "You didn't send a good request")
-	verify(WorksOnMyMachine, "Works on my machine")
+	verify(NotFound, "NotFound", "User could not be found", "{\"type\":\"NotFound\",\"message\":\"User could not be found\"}")
+	verify(AlreadyExists, "AlreadyExists", "User already exists", "{\"type\":\"AlreadyExists\",\"message\":\"User already exists\"}")
+	verify(NotSure, "NotSure", "Not sure what happened", "{\"type\":\"NotSure\",\"message\":\"Not sure what happened\"}")
+	verify(BadRequestData, "BadRequestData", "You didn't send a good request", "{\"type\":\"BadRequestData\",\"message\":\"You didn't send a good request\"}")
+	verify(WorksOnMyMachine, "WorksOnMyMachine", "Works on my machine", "{\"type\":\"WorksOnMyMachine\",\"message\":\"Works on my machine\"}")
 }
 
-func verify(err Error, message string) {
+func toString(val interface{}) string {
+	stringer, _ := val.(fmt.Stringer)
+	return stringer.String()
+}
+
+func toJSON(val interface{}) []byte {
+	encoded, _ := json.Marshal(val)
+
+	return encoded
+}
+
+func verify(err Error, name string, message string, response string) {
 	if fmt.Sprint(err) != message {
 		panic("Didn't get the write value")
+	}
+
+	if toString(err) != name {
+		panic("Wrong name")
+	}
+
+	fmt.Println(string(toJSON(err)))
+	fmt.Println(response)
+
+	if string(toJSON(err)) != response {
+		panic("Wrong JSON")
 	}
 }
